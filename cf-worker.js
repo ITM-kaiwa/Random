@@ -8,7 +8,9 @@
 
 const ALLOWED_ORIGIN = 'https://itm-kaiwa.github.io';
 const TTS_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
-const TTS_WS_URL = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TTS_TOKEN}&Retry-After=200&ConnectionId=${generateId()}`;
+// NOTE: Cloudflare Workers fetch() requires https:// not wss://
+// The Upgrade: websocket header triggers the WebSocket handshake
+const TTS_WS_URL = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TTS_TOKEN}&Retry-After=200&ConnectionId=${generateId()}`;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
