@@ -143,7 +143,6 @@ function playTTS() {
         const textToRead = currentReading.replace(/\s+/g, '');
         currentUtterance = new SpeechSynthesisUtterance(textToRead);
         currentUtterance.lang = 'ja-JP';
-        currentUtterance.rate = 0.9;
         
         if (!ttsVoice) initVoices();
         if (ttsVoice) currentUtterance.voice = ttsVoice;
