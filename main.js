@@ -95,27 +95,29 @@ function initVoices() {
     let voices = window.speechSynthesis.getVoices();
     if (voices.length === 0) return;
     
-    // Prioritize Microsoft Edge Japanese Natural voice
-    let edgeVoice = voices.find(v => v.lang === 'ja-JP' && v.name.toLowerCase().includes('edge'));
+    // Prioritize Microsoft Natural voices (Edge TTS)
+    let edgeVoice = voices.find(v => v.lang.includes('ja') && (v.name.includes('Natural') || v.name.includes('Online')));
     if (!edgeVoice) {
-        edgeVoice = voices.find(v => v.lang === 'ja-JP' && (v.name.toLowerCase().includes('microsoft') || v.name.toLowerCase().includes('natural')));
+        edgeVoice = voices.find(v => v.lang.includes('ja') && v.name.includes('Microsoft'));
     }
-    let defaultJaVoice = voices.find(v => v.lang === 'ja-JP');
+    let defaultJaVoice = voices.find(v => v.lang.includes('ja'));
     
-    ttsVoice = edgeVoice || defaultJaVoice || voices[0]; // fallback
+    ttsVoice = edgeVoice || defaultJaVoice || voices.find(v => v.lang.startsWith('ja')) || voices[0];
 }
 
 window.speechSynthesis.onvoiceschanged = initVoices;
-// Try initializing immediately in case they are already loaded
+// Try initializing immediately
 initVoices();
 
 function playTTS() {
     if (!currentReading) return;
-    // Remove spaces for fluent reading
     const textToRead = currentReading.replace(/\s+/g, '');
     const utterance = new SpeechSynthesisUtterance(textToRead);
     utterance.lang = 'ja-JP';
-    utterance.rate = 0.9; // Slightly slower for learners
+    utterance.rate = 0.9;
+    
+    if (!ttsVoice) initVoices();
+    
     if (ttsVoice) {
         utterance.voice = ttsVoice;
     }
