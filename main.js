@@ -79,9 +79,9 @@ let ttsVoice = null;
 let usingEdgeProxy = false;
 
 // ─────────────────────────────────────────────
-// Cloudflare Worker TTS proxy endpoint
+// Vercel Edge TTS proxy endpoint
 // ─────────────────────────────────────────────
-const TTS_API_URL = 'https://random.itm-radom.workers.dev/';
+const TTS_API_URL = 'https://edge-tts-api-one.vercel.app/api/tts';
 const TTS_VOICE   = 'ja-JP-NanamiNeural';
 
 function updateButtonColor() {
