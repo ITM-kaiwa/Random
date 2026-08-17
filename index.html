@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数字の読み方練習アプリ</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center pt-8 pb-4 px-4 font-sans selection:bg-blue-500 selection:text-white">
+  
+  <main class="w-full max-w-4xl flex flex-col items-center flex-grow">
+    <h1 class="text-3xl font-bold mb-6 text-blue-400 tracking-wider">数字の読み方練習</h1>
+    
+    <!-- Calculator Display (1/5 height of window) -->
+    <div class="w-full h-[20vh] min-h-[160px] max-h-[300px] bg-slate-800 rounded-2xl border-4 border-slate-700 shadow-[inset_0_4px_20px_rgba(0,0,0,0.5)] flex items-center justify-end px-6 py-4 mb-6 relative overflow-hidden">
+      <!-- Glossy Reflection Effect -->
+      <div class="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+      <!-- Output Number -->
+      <div id="numberDisplay" class="calculator-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-cyan-400 font-bold truncate">
+        0
+      </div>
+    </div>
+
+    <!-- Reading & TTS -->
+    <div class="w-full max-w-2xl bg-slate-800/80 rounded-2xl p-5 flex items-center justify-between mb-10 shadow-lg border border-slate-700/50 backdrop-blur-sm">
+      <div id="readingDisplay" class="text-2xl md:text-3xl text-slate-200 font-medium break-words pr-4 flex-grow leading-relaxed">
+        れい
+      </div>
+      <button id="ttsButton" class="shrink-0 w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 active:scale-90 text-white rounded-full flex items-center justify-center transition-all shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500/50" aria-label="読み上げ">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 ml-1" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Controls Area -->
+    <div class="w-full max-w-2xl bg-slate-800 rounded-3xl p-8 shadow-2xl border border-slate-700 relative">
+      <div class="absolute -top-4 left-8 bg-blue-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest text-blue-100 shadow-md">Settings</div>
+      
+      <!-- Manual Input -->
+      <div class="grid grid-cols-2 gap-6 mb-8 mt-2">
+        <div>
+          <label for="minInput" class="block text-sm font-medium text-slate-400 mb-2">最小の数 (0〜)</label>
+          <input type="number" id="minInput" value="0" min="0" max="9999999999999999" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-white font-mono text-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none shadow-inner">
+        </div>
+        <div>
+          <label for="maxInput" class="block text-sm font-medium text-slate-400 mb-2">最大の数 (〜9,999兆)</label>
+          <input type="number" id="maxInput" value="99" min="0" max="9999999999999999" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-4 text-white font-mono text-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none shadow-inner">
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="mb-10">
+        <span class="block text-sm font-medium text-slate-400 mb-3">プリセット範囲</span>
+        <div class="flex flex-wrap gap-3">
+          <label class="cursor-pointer">
+            <input type="radio" name="preset" value="0-99" class="peer sr-only" checked>
+            <div class="px-5 py-3 bg-slate-700 rounded-xl peer-checked:bg-blue-600 peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all hover:bg-slate-600 text-sm font-medium shadow-sm">0-99</div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="preset" value="100-999" class="peer sr-only">
+            <div class="px-5 py-3 bg-slate-700 rounded-xl peer-checked:bg-blue-600 peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all hover:bg-slate-600 text-sm font-medium shadow-sm">100-999</div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="preset" value="1000-9999" class="peer sr-only">
+            <div class="px-5 py-3 bg-slate-700 rounded-xl peer-checked:bg-blue-600 peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all hover:bg-slate-600 text-sm font-medium shadow-sm">1,000-9,999</div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="preset" value="10000-99999" class="peer sr-only">
+            <div class="px-5 py-3 bg-slate-700 rounded-xl peer-checked:bg-blue-600 peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all hover:bg-slate-600 text-sm font-medium shadow-sm">10,000-99,999</div>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="preset" value="100000-999999" class="peer sr-only">
+            <div class="px-5 py-3 bg-slate-700 rounded-xl peer-checked:bg-blue-600 peer-checked:ring-2 peer-checked:ring-blue-400 peer-checked:shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all hover:bg-slate-600 text-sm font-medium shadow-sm">100,000-999,999</div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Output Button -->
+      <button id="outputBtn" class="w-full bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 active:scale-[0.98] active:translate-y-1 text-white text-3xl font-black tracking-widest py-6 rounded-2xl shadow-[0_8px_0_0_#065f46,0_15px_20px_rgba(0,0,0,0.4)] active:shadow-[0_0px_0_0_#065f46,0_0px_0px_rgba(0,0,0,0)] transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/50">
+        出力
+      </button>
+    </div>
+  </main>
+
+  <!-- Footer Area -->
+  <footer class="w-full mt-16 mb-8 flex flex-col items-center">
+    <button id="downloadBtn" class="mb-10 px-8 py-4 bg-slate-700/80 hover:bg-slate-600 active:bg-slate-800 active:scale-95 text-slate-200 rounded-xl flex items-center gap-3 transition-all shadow-lg border border-slate-600 font-medium text-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+      </svg>
+      履歴をダウンロード
+    </button>
+    
+    <div class="text-center text-slate-500 text-sm space-y-2 font-medium">
+      <p class="text-slate-400">Ver0.1α</p>
+      <p>&copy; 2026 ITM Group All Right Reserved.</p>
+    </div>
+  </footer>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

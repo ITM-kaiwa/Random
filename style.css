@@ -1,0 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .calculator-display {
+    font-family: 'Orbitron', monospace;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+  }
+}
