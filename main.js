@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let fileContent = "【数字の読み方 履歴】\r\n\r\n";
         history.forEach((item) => {
-            fileContent += `${item.number}\r\n${item.reading}\r\n\r\n`;
+            fileContent += `${item.number}, ${item.reading}\r\n`;
         });
         
         const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
