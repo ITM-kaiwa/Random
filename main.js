@@ -109,7 +109,7 @@ window.speechSynthesis.onvoiceschanged = initVoices;
 // Try initializing immediately
 initVoices();
 
-function playTTS() {
+function playFallbackTTS() {
     if (!currentReading) return;
     const textToRead = currentReading.replace(/\s+/g, '');
     const utterance = new SpeechSynthesisUtterance(textToRead);
@@ -122,6 +122,94 @@ function playTTS() {
         utterance.voice = ttsVoice;
     }
     window.speechSynthesis.speak(utterance);
+}
+
+let isPlayingTTS = false;
+
+async function playTTS() {
+    if (!currentReading || isPlayingTTS) return;
+    isPlayingTTS = true;
+    const textToRead = currentReading.replace(/\s+/g, '');
+    
+    // UI feedback
+    const ttsButton = document.getElementById('ttsButton');
+    ttsButton.classList.add('animate-pulse', 'ring-4', 'ring-blue-400');
+    
+    try {
+        // Use 'ja-JP-KeitaNeural' (male) or 'ja-JP-NanamiNeural' (female)
+        await speakEdgeTTS(textToRead, 'ja-JP-KeitaNeural');
+    } catch (e) {
+        console.warn("Edge TTS WebSocket failed, falling back to Web Speech API:", e);
+        playFallbackTTS();
+    } finally {
+        isPlayingTTS = false;
+        ttsButton.classList.remove('animate-pulse', 'ring-4', 'ring-blue-400');
+    }
+}
+
+async function speakEdgeTTS(text, voice = 'ja-JP-KeitaNeural') {
+    return new Promise((resolve, reject) => {
+        const ws = new WebSocket('wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4');
+        
+        ws.onopen = () => {
+            const configMsg = `X-Timestamp:${Date.now()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`;
+            ws.send(configMsg);
+            
+            const reqId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+            // rate='-10%' to make it slightly slower for learners
+            const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='ja-JP'><voice name='${voice}'><prosody rate='-10%'>${text}</prosody></voice></speak>`;
+            
+            const requestMsg = `X-RequestId:${reqId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${Date.now()}Z\r\nPath:ssml\r\n\r\n${ssml}`;
+            ws.send(requestMsg);
+        };
+        
+        let audioParts = [];
+        
+        ws.onmessage = async (event) => {
+            if (typeof event.data === 'string') {
+                if (event.data.includes('Path:turn.end')) {
+                    ws.close();
+                    if (audioParts.length > 0) {
+                        const audioBlob = new Blob(audioParts, { type: 'audio/mp3' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        const audio = new Audio(audioUrl);
+                        audio.onended = () => {
+                            URL.revokeObjectURL(audioUrl);
+                            resolve();
+                        };
+                        audio.onerror = () => reject(new Error("Audio playback failed"));
+                        audio.play().catch(reject);
+                    } else {
+                        reject(new Error("No audio data received"));
+                    }
+                }
+            } else if (event.data instanceof Blob) {
+                const arrayBuffer = await event.data.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                let headerEnd = -1;
+                // Find \r\n\r\n
+                for (let i = 0; i < bytes.length - 3; i++) {
+                    if (bytes[i] === 0x0D && bytes[i+1] === 0x0A && bytes[i+2] === 0x0D && bytes[i+3] === 0x0A) {
+                        headerEnd = i + 4;
+                        break;
+                    }
+                }
+                if (headerEnd !== -1) {
+                    audioParts.push(arrayBuffer.slice(headerEnd));
+                }
+            }
+        };
+        
+        ws.onerror = () => reject(new Error("WebSocket connection error"));
+        
+        // Timeout
+        setTimeout(() => {
+            if (ws.readyState !== WebSocket.CLOSED) {
+                ws.close();
+                reject(new Error("Edge TTS Timeout"));
+            }
+        }, 10000);
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
