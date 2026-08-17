@@ -144,6 +144,7 @@ function playTTS() {
         
         window._ttsUtterance = new SpeechSynthesisUtterance(textToRead);
         window._ttsUtterance.lang = 'ja-JP';
+        window._ttsUtterance.volume = 1.0;
         
         // Refresh voices just in case they were updated
         let voices = window.speechSynthesis.getVoices();
