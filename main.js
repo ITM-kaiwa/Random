@@ -127,6 +127,7 @@ window.speechSynthesis.onvoiceschanged = initVoices;
 initVoices();
 
 let isPlayingTTS = false;
+let currentUtterance = null; // Store globally to prevent garbage collection
 
 function playTTS() {
     return new Promise((resolve) => {
@@ -137,26 +138,39 @@ function playTTS() {
         const ringColor = useFallbackTTS ? 'ring-orange-400' : 'ring-blue-400';
         ttsButton.classList.add('animate-pulse', 'ring-4', ringColor);
         
+        window.speechSynthesis.cancel(); // Clear any pending speech
+        
         const textToRead = currentReading.replace(/\s+/g, '');
-        const utterance = new SpeechSynthesisUtterance(textToRead);
-        utterance.lang = 'ja-JP';
-        utterance.rate = 0.9;
+        currentUtterance = new SpeechSynthesisUtterance(textToRead);
+        currentUtterance.lang = 'ja-JP';
+        currentUtterance.rate = 0.9;
         
         if (!ttsVoice) initVoices();
-        if (ttsVoice) utterance.voice = ttsVoice;
+        if (ttsVoice) currentUtterance.voice = ttsVoice;
         
-        utterance.onend = () => {
+        const cleanup = () => {
             isPlayingTTS = false;
             ttsButton.classList.remove('animate-pulse', 'ring-4', ringColor);
-            resolve();
-        };
-        utterance.onerror = () => {
-            isPlayingTTS = false;
-            ttsButton.classList.remove('animate-pulse', 'ring-4', ringColor);
+            currentUtterance = null;
             resolve();
         };
         
-        window.speechSynthesis.speak(utterance);
+        currentUtterance.onend = cleanup;
+        currentUtterance.onerror = (e) => {
+            console.error("TTS Playback Error:", e);
+            cleanup();
+        };
+        
+        window.speechSynthesis.speak(currentUtterance);
+        
+        // Safety timeout in case onend doesn't fire (common browser bug)
+        setTimeout(() => {
+            if (isPlayingTTS) {
+                console.warn("TTS timeout reached. Forcing cleanup.");
+                window.speechSynthesis.cancel();
+                cleanup();
+            }
+        }, 8000);
     });
 }
 
