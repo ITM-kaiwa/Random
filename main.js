@@ -127,7 +127,7 @@ window.speechSynthesis.onvoiceschanged = initVoices;
 initVoices();
 
 let isPlayingTTS = false;
-let currentUtterance = null; // Store globally to prevent garbage collection
+window._ttsUtterance = null; // Store in window to absolutely prevent GC
 
 function playTTS() {
     return new Promise((resolve) => {
@@ -138,38 +138,49 @@ function playTTS() {
         const ringColor = useFallbackTTS ? 'ring-orange-400' : 'ring-blue-400';
         ttsButton.classList.add('animate-pulse', 'ring-4', ringColor);
         
-        window.speechSynthesis.cancel(); // Clear any pending speech
+        // Do NOT use cancel() here, it causes the 'interrupted' error on Edge
+        // Do NOT remove spaces, as Neural voices might hang on extremely long single words
+        const textToRead = currentReading; 
         
-        const textToRead = currentReading.replace(/\s+/g, '');
-        currentUtterance = new SpeechSynthesisUtterance(textToRead);
-        currentUtterance.lang = 'ja-JP';
+        window._ttsUtterance = new SpeechSynthesisUtterance(textToRead);
+        window._ttsUtterance.lang = 'ja-JP';
         
-        if (!ttsVoice) initVoices();
-        if (ttsVoice) currentUtterance.voice = ttsVoice;
+        // Refresh voices just in case they were updated
+        let voices = window.speechSynthesis.getVoices();
+        let voiceToUse = voices.find(v => v.lang.includes('ja') && (v.name.includes('Natural') || v.name.includes('Online')));
+        if (!voiceToUse) voiceToUse = voices.find(v => v.lang.includes('ja'));
+        
+        if (voiceToUse) {
+            window._ttsUtterance.voice = voiceToUse;
+        }
         
         const cleanup = () => {
             isPlayingTTS = false;
             ttsButton.classList.remove('animate-pulse', 'ring-4', ringColor);
-            currentUtterance = null;
             resolve();
         };
         
-        currentUtterance.onend = cleanup;
-        currentUtterance.onerror = (e) => {
+        window._ttsUtterance.onend = cleanup;
+        window._ttsUtterance.onerror = (e) => {
             console.error("TTS Playback Error:", e);
             cleanup();
         };
         
-        window.speechSynthesis.speak(currentUtterance);
+        window.speechSynthesis.speak(window._ttsUtterance);
         
-        // Safety timeout in case onend doesn't fire (common browser bug)
+        // Hack for Chrome/Edge stuck in paused state
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
+        
+        // Extended safety timeout (Online voices can take several seconds to buffer)
         setTimeout(() => {
             if (isPlayingTTS) {
                 console.warn("TTS timeout reached. Forcing cleanup.");
-                window.speechSynthesis.cancel();
+                // We do NOT call cancel() here to avoid triggering 'interrupted' error on late audio
                 cleanup();
             }
-        }, 8000);
+        }, 15000);
     });
 }
 
