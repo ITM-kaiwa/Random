@@ -131,6 +131,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const ttsButton = document.getElementById('ttsButton');
     const downloadBtn = document.getElementById('downloadBtn');
     const presetRadios = document.querySelectorAll('input[name="preset"]');
+    const settingsToggleBtn = document.getElementById('settingsToggleBtn');
+    const settingsContent = document.getElementById('settingsContent');
+    const settingsChevron = document.getElementById('settingsChevron');
+
+    // Accordion Toggle
+    settingsToggleBtn.addEventListener('click', () => {
+        settingsContent.classList.toggle('hidden');
+        if (settingsContent.classList.contains('hidden')) {
+            settingsChevron.classList.remove('rotate-180');
+        } else {
+            settingsChevron.classList.add('rotate-180');
+        }
+    });
 
     // Preset handlers
     presetRadios.forEach(radio => {
