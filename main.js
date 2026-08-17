@@ -85,10 +85,11 @@ function formatNumberWithCommas(numStr) {
     return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-let history = []; // Array of { number: string, reading: string }
+let history = []; 
 let currentNumberStr = "0";
 let currentReading = "れい";
 let ttsVoice = null;
+let useFallbackTTS = false; // Add state for TTS method
 
 // Initialize TTS voice
 function initVoices() {
@@ -109,19 +110,42 @@ window.speechSynthesis.onvoiceschanged = initVoices;
 // Try initializing immediately
 initVoices();
 
-function playFallbackTTS() {
-    if (!currentReading) return;
-    const textToRead = currentReading.replace(/\s+/g, '');
-    const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'ja-JP';
-    utterance.rate = 0.9;
-    
-    if (!ttsVoice) initVoices();
-    
-    if (ttsVoice) {
-        utterance.voice = ttsVoice;
+// Pre-flight check for Edge TTS WebSockets
+function checkEdgeTTSAvailability() {
+    try {
+        const ws = new WebSocket('wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4');
+        ws.onopen = () => ws.close(); // Success
+        ws.onerror = () => enableFallbackUI(); // Failure
+    } catch(e) {
+        enableFallbackUI();
     }
-    window.speechSynthesis.speak(utterance);
+}
+checkEdgeTTSAvailability();
+
+function enableFallbackUI() {
+    useFallbackTTS = true;
+    const ttsButton = document.getElementById('ttsButton');
+    if(ttsButton) {
+        ttsButton.classList.remove('from-blue-500', 'to-blue-700', 'hover:from-blue-400', 'hover:to-blue-600', 'focus:ring-blue-500/50');
+        ttsButton.classList.add('from-orange-500', 'to-orange-700', 'hover:from-orange-400', 'hover:to-orange-600', 'focus:ring-orange-500/50');
+    }
+}
+
+function playFallbackTTS() {
+    return new Promise((resolve) => {
+        if (!currentReading) return resolve();
+        const textToRead = currentReading.replace(/\s+/g, '');
+        const utterance = new SpeechSynthesisUtterance(textToRead);
+        utterance.lang = 'ja-JP';
+        utterance.rate = 0.9;
+        
+        if (!ttsVoice) initVoices();
+        if (ttsVoice) utterance.voice = ttsVoice;
+        
+        utterance.onend = resolve;
+        utterance.onerror = resolve; // Resolve to clear pulsing state
+        window.speechSynthesis.speak(utterance);
+    });
 }
 
 let isPlayingTTS = false;
@@ -131,19 +155,25 @@ async function playTTS() {
     isPlayingTTS = true;
     const textToRead = currentReading.replace(/\s+/g, '');
     
-    // UI feedback
     const ttsButton = document.getElementById('ttsButton');
-    ttsButton.classList.add('animate-pulse', 'ring-4', 'ring-blue-400');
+    const ringColor = useFallbackTTS ? 'ring-orange-400' : 'ring-blue-400';
+    ttsButton.classList.add('animate-pulse', 'ring-4', ringColor);
     
     try {
-        // Use 'ja-JP-KeitaNeural' (male) or 'ja-JP-NanamiNeural' (female)
-        await speakEdgeTTS(textToRead, 'ja-JP-KeitaNeural');
+        if (useFallbackTTS) {
+            await playFallbackTTS();
+        } else {
+            await speakEdgeTTS(textToRead, 'ja-JP-KeitaNeural');
+        }
     } catch (e) {
         console.warn("Edge TTS WebSocket failed, falling back to Web Speech API:", e);
-        playFallbackTTS();
+        enableFallbackUI();
+        ttsButton.classList.remove('ring-blue-400');
+        ttsButton.classList.add('ring-orange-400');
+        await playFallbackTTS();
     } finally {
         isPlayingTTS = false;
-        ttsButton.classList.remove('animate-pulse', 'ring-4', 'ring-blue-400');
+        ttsButton.classList.remove('animate-pulse', 'ring-4', 'ring-blue-400', 'ring-orange-400');
     }
 }
 
@@ -156,7 +186,6 @@ async function speakEdgeTTS(text, voice = 'ja-JP-KeitaNeural') {
             ws.send(configMsg);
             
             const reqId = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2);
-            // rate='-10%' to make it slightly slower for learners
             const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='ja-JP'><voice name='${voice}'><prosody rate='-10%'>${text}</prosody></voice></speak>`;
             
             const requestMsg = `X-RequestId:${reqId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${Date.now()}Z\r\nPath:ssml\r\n\r\n${ssml}`;
@@ -187,7 +216,6 @@ async function speakEdgeTTS(text, voice = 'ja-JP-KeitaNeural') {
                 const arrayBuffer = await event.data.arrayBuffer();
                 const bytes = new Uint8Array(arrayBuffer);
                 let headerEnd = -1;
-                // Find \r\n\r\n
                 for (let i = 0; i < bytes.length - 3; i++) {
                     if (bytes[i] === 0x0D && bytes[i+1] === 0x0A && bytes[i+2] === 0x0D && bytes[i+3] === 0x0A) {
                         headerEnd = i + 4;
@@ -202,7 +230,6 @@ async function speakEdgeTTS(text, voice = 'ja-JP-KeitaNeural') {
         
         ws.onerror = () => reject(new Error("WebSocket connection error"));
         
-        // Timeout
         setTimeout(() => {
             if (ws.readyState !== WebSocket.CLOSED) {
                 ws.close();
@@ -213,6 +240,9 @@ async function speakEdgeTTS(text, voice = 'ja-JP-KeitaNeural') {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // If fallback was triggered before DOM loaded, ensure button is orange
+    if (useFallbackTTS) enableFallbackUI();
+
     const minInput = document.getElementById('minInput');
     const maxInput = document.getElementById('maxInput');
     const outputBtn = document.getElementById('outputBtn');
@@ -277,13 +307,11 @@ document.addEventListener('DOMContentLoaded', () => {
         numberDisplay.textContent = formatNumberWithCommas(currentNumberStr);
         readingDisplay.textContent = currentReading;
         
-        // Add to history
         history.push({
             number: formatNumberWithCommas(currentNumberStr),
             reading: currentReading
         });
         
-        // Uncheck presets if manual override happened
         const currentRange = `${minVal.toString()}-${maxVal.toString()}`;
         let matched = false;
         presetRadios.forEach(r => {
@@ -308,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         let fileContent = "【数字の読み方 履歴】\r\n\r\n";
-        history.forEach((item, index) => {
+        history.forEach((item) => {
             fileContent += `${item.number}\r\n${item.reading}\r\n\r\n`;
         });
         
